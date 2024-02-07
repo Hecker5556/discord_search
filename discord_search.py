@@ -121,7 +121,7 @@ class discord_search:
         if not amount:
             async with aiohttp.ClientSession(connector=discord_search.make_connector(proxy)) as session:
                 messages_json = await discord_search.make_request(url, params, headers, session)
-                parsed: dict = discord_search.parse_messages(messages_json)
+                parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
                 total = parsed.get('total_results')
                 total -= len(parsed['messages'])
                 start = 25
