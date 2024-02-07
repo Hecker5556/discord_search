@@ -164,7 +164,9 @@ class discord_search:
     async def make_request(url: str, params: dict, headers: dict, session: aiohttp.ClientSession):
         async with session.get(url, headers=headers, params=params) as r:
             if r.status == 403:
-                raise ValueError("Status 403 forbidden! Check your token, guild_id, perms")
+                raise ValueError("Status 403 forbidden! Check your guild_id, perms")
+            if r.status == 401:
+                raise ValueError("Status 401 unauthorized! Check your token")
             rtext = await r.text(encoding="utf-8")
             return json.loads(rtext)
     def convert_to_snowflake(date: datetime) -> int:
