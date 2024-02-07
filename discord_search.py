@@ -128,7 +128,7 @@ class discord_search:
                 messages += parsed['messages']
                 while total > 0:
                     params['offset'] = start
-                    messages_json = await discord_search.make_request(url, params, headers, proxy)
+                    messages_json = await discord_search.make_request(url, params, headers, session)
                     parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
                     total -= len(parsed['messages'])
                     messages += parsed['messages']
