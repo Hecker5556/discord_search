@@ -55,34 +55,54 @@ class discord_search:
                 case "guild_id":
                     url = f"https://canary.discord.com/api/v9/guilds/{value}/messages/search"
                 case "text":
+                    if not value:
+                        continue
                     params['content'] = value
                 case "from_user":
+                    if not value:
+                        continue
                     params['author_id'] = value
                 case "mentions":
+                    if not value:
+                        continue
                     params['mentions'] = value
                 case "has":
-                    if value and value.lower() not in ['link', 'embed', 'file', 'video', 'image', 'sound', 'sticker']:
+                    if not value:
+                        continue
+                    if value.lower() not in ['link', 'embed', 'file', 'video', 'image', 'sound', 'sticker']:
                         continue
                     params['has'] = value
                 case 'before':
+                    if not value:
+                        continue
                     if not isinstance(value, datetime):
                         continue
                     params['max_id'] = discord_search.convert_to_snowflake(value)
                 case 'during':
+                    if not value:
+                        continue
                     if not isinstance(value, datetime):
                         continue
                     params['max_id'] = discord_search.convert_to_snowflake(value + timedelta(days=1)) #before day + 1
                     params['min_id'] = discord_search.convert_to_snowflake(value - timedelta(days=1)) #after day - 1
                 case 'after':
+                    if not value:
+                        continue
                     if not isinstance(value, datetime):
                         continue
                     params['min_id'] = discord_search.convert_to_snowflake(value)
                 case 'pinned':
+                    if not value:
+                        continue
                     if isinstance(value, bool):
                         params['pinned'] = str(value)
                 case 'include_nsfw':
+                    if not value:
+                        continue
                     params['include_nsfw'] = str(value)
                 case 'in_channel':
+                    if not value:
+                        continue
                     params['channel_id'] = value
                 case _:
                     print("invalid argument: %s" % key)
