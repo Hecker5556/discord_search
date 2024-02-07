@@ -61,7 +61,7 @@ class discord_search:
                 case "mentions":
                     params['mentions'] = value
                 case "has":
-                    if value.lower() not in ['link', 'embed', 'file', 'video', 'image', 'sound', 'sticker']:
+                    if value and value.lower() not in ['link', 'embed', 'file', 'video', 'image', 'sound', 'sticker']:
                         continue
                     params['has'] = value
                 case 'before':
