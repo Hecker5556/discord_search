@@ -134,18 +134,21 @@ class discord_search:
                     messages += parsed['messages']
         else:
             start = 25
+            left = amount
             isfirst = True
             async with aiohttp.ClientSession(connector=discord_search.make_connector(proxy)) as session:
-                while amount > 0:
+                while left > 0:
                     if not isfirst:
                         params['offset'] = start
                     messages_json = await discord_search.make_request(url, params, headers, session)
                     parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
-                    amount -= len(parsed['messages'])
+                    left -= len(parsed['messages'])
                     messages += parsed['messages']
                     if isfirst:
                         total = parsed['total_results'] - len(parsed['messages'])
                         isfirst = False
+                        if total == 0:
+                            break
                     else:
                         total -= len(parsed['messages'])
                         if total == 0:
@@ -195,7 +198,8 @@ class discord_search:
         return parsed
 if __name__ == "__main__":
     from env import token, guild_id
-    result = asyncio.run(discord_search.search(in_channel=1006349799039189072, token=token, guild_id=guild_id, amount=None, return_msgs = True))
+    from pprint import pprint
+    result = asyncio.run(discord_search.search(in_channel=1006349799039189072, token=token, guild_id=guild_id, amount=25, return_msgs = True))
     with open("messages.json", "w") as f1:
         json.dump(result, f1, indent=4)
     print(len(result))
