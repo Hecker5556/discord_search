@@ -132,6 +132,7 @@ class discord_search:
                     parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
                     total -= len(parsed['messages'])
                     messages += parsed['messages']
+                    start += 25
         else:
             start = 25
             left = amount
@@ -199,7 +200,7 @@ class discord_search:
 if __name__ == "__main__":
     from env import token, guild_id
     from pprint import pprint
-    result = asyncio.run(discord_search.search(in_channel=1006349799039189072, token=token, guild_id=guild_id, amount=25, return_msgs = True))
+    result = asyncio.run(discord_search.search(in_channel=1006349799039189072, token=token, guild_id=guild_id, amount=None, return_msgs = True))
     with open("messages.json", "w") as f1:
         json.dump(result, f1, indent=4)
     print(len(result))
