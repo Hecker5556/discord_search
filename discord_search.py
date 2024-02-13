@@ -162,13 +162,19 @@ class discord_search:
         else:
             return aiohttp.TCPConnector()
     async def make_request(url: str, params: dict, headers: dict, session: aiohttp.ClientSession):
-        async with session.get(url, headers=headers, params=params) as r:
-            if r.status == 403:
-                raise ValueError("Status 403 forbidden! Check your guild_id, perms")
-            if r.status == 401:
-                raise ValueError("Status 401 unauthorized! Check your token")
-            rtext = await r.text(encoding="utf-8")
-            return json.loads(rtext)
+        while True:
+            async with session.get(url, headers=headers, params=params) as r:
+                if r.status == 403:
+                    raise ValueError("Status 403 forbidden! Check your guild_id, perms")
+                if r.status == 401:
+                    raise ValueError("Status 401 unauthorized! Check your token")
+                rtext = await r.text(encoding="utf-8")
+                parsed = json.loads(rtext)
+                if parsed.get('retry_after'):
+                    print(f"ratelimited {parsed['retry_after']}")
+                    await asyncio.sleep(parsed['retry_after'])
+                    continue
+                return parsed
     def convert_to_snowflake(date: datetime) -> int:
         timestamp = int(date.timestamp()*1000)
         timestamp = (timestamp - 1420070400000) << 22
@@ -189,8 +195,7 @@ class discord_search:
         return parsed
 if __name__ == "__main__":
     from env import token, guild_id
-    from pprint import pprint
-    result = asyncio.run(discord_search.search(has="link", token=token, guild_id=guild_id, amount=52, return_msgs = True))
+    result = asyncio.run(discord_search.search(in_channel=1006349799039189072, token=token, guild_id=guild_id, amount=None, return_msgs = True))
     with open("messages.json", "w") as f1:
         json.dump(result, f1, indent=4)
     print(len(result))
