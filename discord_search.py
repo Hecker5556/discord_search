@@ -3,6 +3,172 @@ from aiohttp_socks import ProxyConnector
 from datetime import datetime, timedelta
 import json
 class discord_search:
+    async def lazy_search(token: str, return_msgs: bool = False, proxy: str = None, amount: int = None, **kwargs) -> (list[int] | list[dict]):
+        """
+        Args:
+
+            token (str) - user token to use with search api requests
+
+            return_msgs (bool, False) - whether to return entire message objects
+
+            proxy (str, optional) - proxy to use
+
+            amount(int, optional) - amount of messages to get, by default all
+
+            guild_id (int) - which guild to search in
+            
+            text (str, optional) - text to search for
+            
+            from_user (int, optional) - messages from a user id
+            
+            in_channel (int, optional) - messages in a channel
+
+            mentions (int, optional) - messages that mention that user id
+            
+            has ('link', 'embed', 'file', 'video', 'image', 'sound', 'sticker', optional) - messages that include one of those things
+            
+            before (datetime object, optional) - messages before a date
+            
+            during (datetime object, optional) - messages during a date
+            
+            after (datetime object, optional)  - messages after a date
+            
+            pinned (bool, optional) - messages that are pinned
+
+            include_nsfw (bool, True) - messages that are in nsfw channels
+
+        Returns:
+
+            On iteration a list of a number of  message ids
+
+            OR
+
+            On iterationa  list of message dicts
+        """
+        if amount and amount < 0:
+            raise ValueError("amount needs to be a positive number (larger than 0)!")
+        params = {}
+        params['include_nsfw'] = str(True)
+        url = None
+        for key, value in kwargs.items():
+            match key:
+                case "guild_id":
+                    url = f"https://canary.discord.com/api/v9/guilds/{value}/messages/search"
+                case "text":
+                    if not value:
+                        continue
+                    params['content'] = value
+                case "from_user":
+                    if not value:
+                        continue
+                    params['author_id'] = value
+                case "mentions":
+                    if not value:
+                        continue
+                    params['mentions'] = value
+                case "has":
+                    if not value:
+                        continue
+                    if value.lower() not in ['link', 'embed', 'file', 'video', 'image', 'sound', 'sticker']:
+                        continue
+                    params['has'] = value
+                case 'before':
+                    if not value:
+                        continue
+                    if not isinstance(value, datetime):
+                        continue
+                    params['max_id'] = discord_search.convert_to_snowflake(value)
+                case 'during':
+                    if not value:
+                        continue
+                    if not isinstance(value, datetime):
+                        continue
+                    params['max_id'] = discord_search.convert_to_snowflake(value + timedelta(days=1)) #before day + 1
+                    params['min_id'] = discord_search.convert_to_snowflake(value - timedelta(days=1)) #after day - 1
+                case 'after':
+                    if not value:
+                        continue
+                    if not isinstance(value, datetime):
+                        continue
+                    params['min_id'] = discord_search.convert_to_snowflake(value)
+                case 'pinned':
+                    if not value:
+                        continue
+                    if isinstance(value, bool):
+                        params['pinned'] = str(value)
+                case 'include_nsfw':
+                    if not value:
+                        continue
+                    params['include_nsfw'] = str(value)
+                case 'in_channel':
+                    if not value:
+                        continue
+                    params['channel_id'] = value
+                case 'relevant':
+                    if not value:
+                        continue
+                    params['sort_by'] = 'relevance'
+                    params['sort_order'] = 'desc'
+                case 'new':
+                    if not value:
+                        continue
+                    params['sort_by'] = 'timestamp'
+                    params['sort_order'] = 'desc'
+                case 'old':
+                    if not value:
+                        continue
+                    params['sort_by'] = 'timestamp'
+                    params['sort_order'] = 'asc'
+                case _:
+                    print("invalid argument: %s" % key)
+        if len(params.keys()) <= 1:
+            raise ValueError("provide arguments!")
+        if not url:
+            raise ValueError("no guild id provided! provide guild id by passing guild_id=id in the function")
+        headers = {
+            'authority': 'canary.discord.com',
+            'accept': '*/*',
+            'accept-language': 'en-US,pl;q=0.9,ru;q=0.8',
+            'authorization': token,
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.175 Chrome/120.0.6099.268 Electron/28.2.1 Safari/537.36',
+        }
+        if not amount:
+            async with aiohttp.ClientSession(connector=discord_search.make_connector(proxy)) as session:
+                messages_json = await discord_search.make_request(url, params, headers, session)
+                parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
+                total = parsed.get('total_results')
+                total -= len(parsed['messages'])
+                start = 25
+                yield parsed['messages']
+                while total > 0:
+                    params['offset'] = start
+                    messages_json = await discord_search.make_request(url, params, headers, session)
+                    parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
+                    total -= len(parsed['messages'])
+                    yield parsed['messages']
+                    start += 25
+        else:
+            start = 25
+            left = amount
+            isfirst = True
+            async with aiohttp.ClientSession(connector=discord_search.make_connector(proxy)) as session:
+                while left > 0:
+                    if not isfirst:
+                        params['offset'] = start
+                    messages_json = await discord_search.make_request(url, params, headers, session)
+                    parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
+                    yield parsed['messages'][:left]
+                    left -= len(parsed['messages'])
+                    if isfirst:
+                        total = parsed['total_results'] - len(parsed['messages'])
+                        isfirst = False
+                        if total == 0:
+                            break
+                    else:
+                        total -= len(parsed['messages'])
+                        if total == 0:
+                            break
+                        start += 25
     async def search(token: str, return_msgs: bool = False, proxy: str = None, amount: int = None, **kwargs) -> (list[int] | list[dict]):
         """
         Args:
@@ -36,6 +202,12 @@ class discord_search:
             pinned (bool, optional) - messages that are pinned
 
             include_nsfw (bool, True) - messages that are in nsfw channels
+
+            new (bool, optional) - newest messages
+
+            old (bool, optional) - oldest messages
+
+            relevant (bool, optional) - relevant messages
 
         Returns:
 
@@ -104,6 +276,21 @@ class discord_search:
                     if not value:
                         continue
                     params['channel_id'] = value
+                case 'relevant':
+                    if not value:
+                        continue
+                    params['sort_by'] = 'relevance'
+                    params['sort_order'] = 'desc'
+                case 'new':
+                    if not value:
+                        continue
+                    params['sort_by'] = 'timestamp'
+                    params['sort_order'] = 'desc'
+                case 'old':
+                    if not value:
+                        continue
+                    params['sort_by'] = 'timestamp'
+                    params['sort_order'] = 'asc'
                 case _:
                     print("invalid argument: %s" % key)
         if len(params.keys()) <= 1:
@@ -197,10 +384,18 @@ class discord_search:
             for message in messages.get('messages'):
                 parsed['messages'].append(message[0])
         return parsed
+async def main():
+    msgs = []
+    async for msg in discord_search.lazy_search(in_channel=1006349799039189072, amount=4, token=token, guild_id=guild_id, return_msgs = True):
+        msgs += msg
+    print(len(msgs))
+    with open("messages.json", "w") as f1:
+        json.dump(msgs, f1)
 if __name__ == "__main__":
     from env import token, guild_id
     from pprint import pprint
-    result = asyncio.run(discord_search.search(in_channel=1006349799039189072, token=token, guild_id=guild_id, amount=None, return_msgs = True))
-    with open("messages.json", "w") as f1:
-        json.dump(result, f1, indent=4)
-    print(len(result))
+    # result = asyncio.run(discord_search.search(in_channel=1006349799039189072, token=token, guild_id=guild_id, amount=None, return_msgs = True))
+    asyncio.run(main())
+    # with open("messages.json", "w") as f1:
+    #     json.dump(result, f1, indent=4)
+    # print(len(result))
