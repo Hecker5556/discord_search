@@ -139,7 +139,7 @@ class discord_search:
                 total = parsed.get('total_results')
                 total -= len(parsed['messages'])
                 start = 25
-                yield parsed['messages']
+                yield parsed['messages'], parsed['total_results']
                 while total > 0:
                     params['offset'] = start
                     messages_json = await discord_search.make_request(url, params, headers, session)
@@ -385,12 +385,12 @@ class discord_search:
                 parsed['messages'].append(message[0])
         return parsed
 async def main():
-    msgs = []
-    async for msg in discord_search.lazy_search(in_channel=1006349799039189072, amount=4, token=token, guild_id=guild_id, return_msgs = True):
-        msgs += msg
-    print(len(msgs))
-    with open("messages.json", "w") as f1:
-        json.dump(msgs, f1)
+
+    async for msg, total in discord_search.lazy_search(in_channel=1006349799039189072, amount=None, token=token, guild_id=guild_id, return_msgs = True):
+        print(total)
+
+    # with open("messages.json", "w") as f1:
+    #     json.dump(msgs, f1)
 if __name__ == "__main__":
     from env import token, guild_id
     from pprint import pprint
