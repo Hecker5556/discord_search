@@ -145,7 +145,7 @@ class discord_search:
                     messages_json = await discord_search.make_request(url, params, headers, session)
                     parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
                     total -= len(parsed['messages'])
-                    yield parsed['messages']
+                    yield parsed['messages'], parsed['total_results']
                     start += 25
         else:
             start = 25
@@ -157,7 +157,7 @@ class discord_search:
                         params['offset'] = start
                     messages_json = await discord_search.make_request(url, params, headers, session)
                     parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
-                    yield parsed['messages'][:left]
+                    yield parsed['messages'][:left], parsed['total_results']
                     left -= len(parsed['messages'])
                     if isfirst:
                         total = parsed['total_results'] - len(parsed['messages'])
@@ -343,7 +343,7 @@ class discord_search:
                             break
                         start += 25
                 messages = messages[:amount]
-        return messages
+        return messages, parsed['total_results']
     def make_connector(proxy: str) -> (ProxyConnector | aiohttp.TCPConnector):
         if proxy:
             if "socks" in proxy:
