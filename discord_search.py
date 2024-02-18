@@ -37,6 +37,14 @@ class discord_search:
 
             include_nsfw (bool, True) - messages that are in nsfw channels
 
+            new (bool, optional) - newest messages
+
+            old (bool, optional) - oldest messages
+
+            relevant (bool, optional) - relevant messages
+
+            offset (int, optional) - starting offset
+
         Returns:
 
             On iteration a list of a number of  message ids
@@ -50,6 +58,7 @@ class discord_search:
         params = {}
         params['include_nsfw'] = str(True)
         url = None
+        customoffset = False
         for key, value in kwargs.items():
             match key:
                 case "guild_id":
@@ -119,6 +128,11 @@ class discord_search:
                         continue
                     params['sort_by'] = 'timestamp'
                     params['sort_order'] = 'asc'
+                case 'offset':
+                    if not value:
+                        continue
+                    params['offset'] = value
+                    customoffset = True
                 case _:
                     print("invalid argument: %s" % key)
         if len(params.keys()) <= 1:
@@ -141,7 +155,10 @@ class discord_search:
                 start = 25
                 yield parsed['messages'], parsed['total_results']
                 while total > 0:
-                    params['offset'] = start
+                    if not customoffset:
+                        params['offset'] = start
+                    else:
+                        params['offset'] += start
                     messages_json = await discord_search.make_request(url, params, headers, session)
                     parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
                     total -= len(parsed['messages'])
@@ -154,7 +171,10 @@ class discord_search:
             async with aiohttp.ClientSession(connector=discord_search.make_connector(proxy)) as session:
                 while left > 0:
                     if not isfirst:
-                        params['offset'] = start
+                        if not customoffset:
+                            params['offset'] = start
+                        else:
+                            params['offset'] += start
                     messages_json = await discord_search.make_request(url, params, headers, session)
                     parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
                     yield parsed['messages'][:left], parsed['total_results']
@@ -209,6 +229,8 @@ class discord_search:
 
             relevant (bool, optional) - relevant messages
 
+            offset (int, optional) - starting offset
+
         Returns:
 
             A list of all the message ids
@@ -222,6 +244,7 @@ class discord_search:
         params = {}
         params['include_nsfw'] = str(True)
         url = None
+        customoffset = False
         for key, value in kwargs.items():
             match key:
                 case "guild_id":
@@ -291,6 +314,11 @@ class discord_search:
                         continue
                     params['sort_by'] = 'timestamp'
                     params['sort_order'] = 'asc'
+                case 'offset':
+                    if not value:
+                        continue
+                    params['offset'] = value
+                    customoffset = True
                 case _:
                     print("invalid argument: %s" % key)
         if len(params.keys()) <= 1:
@@ -314,7 +342,10 @@ class discord_search:
                 start = 25
                 messages += parsed['messages']
                 while total > 0:
-                    params['offset'] = start
+                    if not customoffset:
+                        params['offset'] = start
+                    else:
+                        params['offset'] += start
                     messages_json = await discord_search.make_request(url, params, headers, session)
                     parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
                     total -= len(parsed['messages'])
@@ -327,7 +358,10 @@ class discord_search:
             async with aiohttp.ClientSession(connector=discord_search.make_connector(proxy)) as session:
                 while left > 0:
                     if not isfirst:
-                        params['offset'] = start
+                        if not customoffset:
+                            params['offset'] = start
+                        else:
+                            params['offset'] += start
                     messages_json = await discord_search.make_request(url, params, headers, session)
                     parsed: dict = discord_search.parse_messages(messages_json, return_msgs)
                     left -= len(parsed['messages'])
@@ -385,12 +419,12 @@ class discord_search:
                 parsed['messages'].append(message[0])
         return parsed
 async def main():
+    msgs = []
+    async for msg, total in discord_search.lazy_search(in_channel=1006349799039189072, amount=5, offset=324, token=token, guild_id=guild_id, return_msgs = True):
+        msgs.append(msg)
 
-    async for msg, total in discord_search.lazy_search(in_channel=1006349799039189072, amount=None, token=token, guild_id=guild_id, return_msgs = True):
-        print(total)
-
-    # with open("messages.json", "w") as f1:
-    #     json.dump(msgs, f1)
+    with open("messages.json", "w") as f1:
+        json.dump(msgs, f1)
 if __name__ == "__main__":
     from env import token, guild_id
     from pprint import pprint
